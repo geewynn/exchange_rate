@@ -1,13 +1,20 @@
 import os
+from typing import Any, Dict, List, Tuple
 import psycopg2
 import requests
-from datetime import datetime, timedelta
 import pandas as pd
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import logging
+
 load_dotenv()
 
-API_KEY=os.environ.get('X_API_KEY')
-def get_wallet_balance(wallet_address):
+API_KEY = os.environ.get('X_API_KEY')
+
+# Configure logging
+logging.basicConfig(filename='wallet_balance.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def get_wallet_balance(wallet_address: str) -> Dict[str, Any]:
     """
     Get the wallet balance for a given wallet address.
 
@@ -17,7 +24,6 @@ def get_wallet_balance(wallet_address):
     Returns:
     - dict: A dictionary containing the wallet balance data.
     """
-
     url = 'https://api.allium.so/api/v1/explorer/queries/UWHFUe3BPTFpd7EDVIiI/run'
     headers = {
         'Content-Type': 'application/json',
@@ -27,35 +33,40 @@ def get_wallet_balance(wallet_address):
         'address': wallet_address
     }
     response = requests.post(url, headers=headers, json=data)
-    data = response.json()
-    return data['data']
+    if response.status_code == 200:
+        data = response.json()
+        return data['data']
+    else:
+        logging.error(f'Failed to fetch wallet balance for address {wallet_address}. Status code: {response.status_code}')
+        return {}
 
 
-def get_exchange_rates():
+def get_exchange_rates() -> List[Tuple[datetime, float, datetime, str]]:
     """
     Get exchange rates up to a specified timestamp.
-
-    Args:
-    - timestamp (datetime): The timestamp up to which to retrieve exchange rates.
 
     Returns:
     - list of tuples: A list of tuples containing exchange rate data.
     """
-    conn = psycopg2.connect(
-        dbname=os.environ.get('POSTGRES_DB'),
-        user=os.environ.get('POSTGRES_USER'),
-        password=os.environ.get('POSTGRES_PW'),
-        host=os.environ.get('INSTANCE_HOST')
-    )
-    with conn.cursor() as cursor:
-        query = "SELECT date, price, time, name FROM exch;"
-        cursor.execute(query)
-        rows = cursor.fetchall()
-    conn.close()
-    return rows
+    try:
+        conn = psycopg2.connect(
+            dbname=os.environ.get('POSTGRES_DB'),
+            user=os.environ.get('POSTGRES_USER'),
+            password=os.environ.get('POSTGRES_PW'),
+            host=os.environ.get('INSTANCE_HOST')
+        )
+        with conn.cursor() as cursor:
+            query = "SELECT date, price, time, name FROM exch;"
+            cursor.execute(query)
+            rows = cursor.fetchall()
+        conn.close()
+        return rows
+    except Exception as e:
+        logging.error(f'Failed to fetch exchange rates: {e}')
+        return []
 
 
-def calculate_total_balance(timestamp, wallet_balances, exchange_rates):
+def calculate_total_balance(timestamp: datetime, wallet_balances: List[Dict[str, Any]], exchange_rates: List[Tuple[datetime, float, datetime, str]]) -> float:
     """
     Calculate the total balance in USD for a given timestamp.
 
@@ -91,7 +102,7 @@ def calculate_total_balance(timestamp, wallet_balances, exchange_rates):
     return total_balance_usd
 
 
-def calculate_hourly_pnl(wallet_address):
+def calculate_hourly_pnl(wallet_address: str) -> pd.DataFrame:
     """
     Calculate the hourly profit and loss for the past 7 days for a given wallet address.
 
@@ -117,6 +128,6 @@ def calculate_hourly_pnl(wallet_address):
 
     return df
 
-
-wallet_address = "0x26a016De7Db2A9e449Fe5b6D13190558d6bBCd5F"
-calculate_hourly_pnl(wallet_address)
+if __name__ == '__main__':
+    wallet_address = "0x26a016De7Db2A9e449Fe5b6D13190558d6bBCd5F"
+    calculate_hourly_pnl(wallet_address)

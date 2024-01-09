@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
+import logging
 
 # Load environment variables from .env file
 load_dotenv()
@@ -24,15 +25,16 @@ connection_str = f'postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name
 # Create SQLAlchemy engine
 engine = create_engine(connection_str)
 
-# Try to connect to the PostgreSQL database
+# Set up logging
+logging.basicConfig(filename='extract_rate_data.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 try:
     with engine.connect() as connection_str:
-        print('Successfully connected to the PostgreSQL database')
+        logging.info('Successfully connected to the PostgreSQL database')
 except Exception as ex:
-    print(f'Sorry failed to connect: {ex}')
+    logging.error(f'Failed to connect: {ex}')
 
-
-def fetch_token_data(coin, days):
+def fetch_token_data(coin: str, days: int) -> list:
     """
     Fetches historical market chart data for a cryptocurrency from CoinGecko API.
 
@@ -52,11 +54,10 @@ def fetch_token_data(coin, days):
         data = response.json()
         return data['prices']
     else:
-        print(
-            f'Failed to fetch data for {coin}. Status code: {response.status_code}')
+        logging.error(f'Failed to fetch data for {coin}. Status code: {response.status_code}')
         return []
 
-def extract_rate_data(days):
+def extract_rate_data(days: int) -> None:
     """
     Extracts hourly exchange rate data for the top ten cryptocurrencies from CoinGecko,
     processes the data, and stores it in a PostgreSQL database.
@@ -73,7 +74,7 @@ def extract_rate_data(days):
     for token in top_ten:
         token_data = fetch_token_data(token, days)
         if token_data:
-            print(f'Token: {token}')
+            logging.info(f'Token: {token}')
             # Create a DataFrame from the fetched data
             prices = pd.DataFrame(token_data, columns=['date', 'price'])
             # Convert timestamp to datetime and round to the nearest hour
@@ -83,7 +84,7 @@ def extract_rate_data(days):
             prices['name'] = token
             exchange_rate.append(prices)
         else:
-            print(f'No data available for {token.capitalize()}')
+            logging.warning(f'No data available for {token.capitalize()}')
 
     # Combine data for all tokens into a single DataFrame
     rates = pd.concat(exchange_rate, ignore_index=True)
@@ -92,5 +93,5 @@ def extract_rate_data(days):
     rates.to_sql('exch', con=engine, if_exists="replace", index=False)
 
 if __name__ == '__main__':
-    # Example usage: fetch hourly exchange rate data for the past 7 days
+    # usage: fetch hourly exchange rate data for the past 7 days
     extract_rate_data(7)
