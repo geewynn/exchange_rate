@@ -1,34 +1,49 @@
-import requests
-from dotenv import load_dotenv
-from datetime import datetime, timedelta
-import pandas as pd
-from sqlalchemy import create_engine
 import os
+import requests
+import pandas as pd
+from datetime import datetime
+from sqlalchemy import create_engine
+from dotenv import load_dotenv
 
-import sqlalchemy
+# Load environment variables from .env file
 load_dotenv()
 
-# load env variables
+# Load database connection details from environment variables
 db_host = os.environ["INSTANCE_HOST"]
 db_user = os.environ["POSTGRES_USER"]
 db_pass = os.environ["POSTGRES_PW"]
 db_name = os.environ["POSTGRES_DB"]
 db_port = os.environ["POSTGRES_PORT"]
 
+# List of top ten tokens on CoinGecko
+top_ten = ['bitcoin', 'ethereum', 'tether', 'binancecoin', 'solana',
+           'ripple', 'usd-coin', 'staked-ether', 'cardano', 'avalanche-2']
 
-top_ten = ['bitcoin', 'ethereum', 'tether', 'binancecoin', 'solana', 'ripple','usd-coin', 'staked-ether','cardano', 'avalanche-2']
+# Create connection string for SQLAlchemy
 connection_str = f'postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}'
-# SQLAlchemy engine
+# Create SQLAlchemy engine
 engine = create_engine(connection_str)
 
+# Try to connect to the PostgreSQL database
 try:
     with engine.connect() as connection_str:
         print('Successfully connected to the PostgreSQL database')
 except Exception as ex:
     print(f'Sorry failed to connect: {ex}')
 
-def fetch_token_data(coin):
-    url = f'https://api.coingecko.com/api/v3/coins/{coin}/market_chart?vs_currency=usd&days=7'
+
+def fetch_token_data(coin, days):
+    """
+    Fetches historical market chart data for a cryptocurrency from CoinGecko API.
+
+    Args:
+    - coin (str): The name of the cryptocurrency.
+    - days (int): The number of days of historical data to fetch.
+
+    Returns:
+    - list: A list of tuples containing timestamp and price data.
+    """
+    url = f'https://api.coingecko.com/api/v3/coins/{coin}/market_chart?vs_currency=usd&days={days}'
     params = {
         'vs_currency': 'usd'
     }
@@ -37,27 +52,45 @@ def fetch_token_data(coin):
         data = response.json()
         return data['prices']
     else:
-        print(f'Failed to fetch data for {coin}. Status code: {response.status_code}')
+        print(
+            f'Failed to fetch data for {coin}. Status code: {response.status_code}')
         return []
 
+def extract_rate_data(days):
+    """
+    Extracts hourly exchange rate data for the top ten cryptocurrencies from CoinGecko,
+    processes the data, and stores it in a PostgreSQL database.
 
-# List of top ten tokens
-exchange_rate = []
+    Args:
+    - days (int): The number of days of historical data to fetch.
 
-# Fetch and print hourly exchange rate data for each token
-for token in top_ten:
-    token_data = fetch_token_data(token)
-    if token_data:
-        print(f'Token: {token}')
-        prices = pd.DataFrame(token_data, columns=['date', 'price'])
-        prices['time'] = prices['date']
-        prices['date'] = prices.date.apply(lambda x: datetime.fromtimestamp(x // 1000)).dt.floor('h')
-        prices['name'] = token
-        exchange_rate.append(prices)
-    else:
-        print(f'No data available for {token.capitalize()}')
-rates = pd.concat(exchange_rate, ignore_index=True)
-# rates.to_csv('token.csv', index=False)
+    Returns:
+    - None
+    """
+    exchange_rate = []
 
-rates.to_sql('exch', con=engine, if_exists="replace", index=False)
+    # Fetch hourly exchange rate data for each token
+    for token in top_ten:
+        token_data = fetch_token_data(token, days)
+        if token_data:
+            print(f'Token: {token}')
+            # Create a DataFrame from the fetched data
+            prices = pd.DataFrame(token_data, columns=['date', 'price'])
+            # Convert timestamp to datetime and round to the nearest hour
+            prices['time'] = prices['date']
+            prices['date'] = prices['date'].apply(
+                lambda x: datetime.fromtimestamp(x // 1000)).dt.floor('h')
+            prices['name'] = token
+            exchange_rate.append(prices)
+        else:
+            print(f'No data available for {token.capitalize()}')
 
+    # Combine data for all tokens into a single DataFrame
+    rates = pd.concat(exchange_rate, ignore_index=True)
+
+    # Store the data in the PostgreSQL database
+    rates.to_sql('exch', con=engine, if_exists="replace", index=False)
+
+if __name__ == '__main__':
+    # Example usage: fetch hourly exchange rate data for the past 7 days
+    extract_rate_data(7)
