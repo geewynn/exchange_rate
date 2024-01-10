@@ -13,10 +13,11 @@ load_dotenv()
 API_KEY = os.environ.get('X_API_KEY')
 WALLET_ADDRESS=os.environ.get('WALLET_ADDRESS')
 print(WALLET_ADDRESS)
-db_host = os.environ["INSTANCE_HOST"]
-db_user = os.environ["POSTGRES_USER"]
-db_pass = os.environ["POSTGRES_PW"]
-db_name = os.environ["POSTGRES_DB"]
+TABLE_NAME = os.environ["TABLE_NAME"]
+DB_HOST = os.environ["INSTANCE_HOST"]
+DB_USER = os.environ["POSTGRES_USER"]
+DB_PASS = os.environ["POSTGRES_PW"]
+DB_NAME = os.environ["POSTGRES_DB"]
 db_port = 5432
 
 # Configure logging
@@ -65,7 +66,7 @@ def connect_to_db():
         print(f'Failed to connect: {ex}')
         logging.error(f'Failed to connect: {ex}')
 
-def get_exchange_rates() -> List[Tuple[datetime, float, datetime, str]]:
+def get_exchange_rates(table_name) -> List[Tuple[datetime, float, datetime, str]]:
     """
     Get exchange rates up to a specified timestamp.
 
@@ -74,14 +75,14 @@ def get_exchange_rates() -> List[Tuple[datetime, float, datetime, str]]:
     """
     try:
         conn = psycopg2.connect(
-            dbname=db_name,
-            user=db_user, 
-            password=db_pass, 
-            host=db_host 
+            dbname=DB_NAME,
+            user=DB_USER, 
+            password=DB_PASS, 
+            host=DB_HOST 
         )
         with conn.cursor() as cursor:
-            query = "SELECT date, price, time, name FROM exch;"
-            cursor.execute(query)
+            query = "SELECT date, price, time, name FROM %s;"
+            cursor.execute(query, (table_name,)) 
             rows = cursor.fetchall()
         conn.close()
         return rows
@@ -138,7 +139,7 @@ def calculate_hourly_pnl(wallet_address: str) -> pd.DataFrame:
     """
     engine = connect_to_db()
     wallet_balances = get_wallet_balance(wallet_address)
-    exchange_rates = get_exchange_rates()
+    exchange_rates = get_exchange_rates(TABLE_NAME)
     end_time = datetime.now()
     start_time = end_time - timedelta(days=7)
     hourly_pnl = []

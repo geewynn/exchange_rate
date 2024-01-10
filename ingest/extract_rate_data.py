@@ -7,23 +7,24 @@ from sqlalchemy import create_engine
 from dotenv import load_dotenv
 import logging
 
-# time.sleep(300)
 # Load environment variables from .env file
 load_dotenv()
 
 # Load database connection details from environment variables
-db_host = os.environ["INSTANCE_HOST"]
-db_user = os.environ["POSTGRES_USER"]
-db_pass = os.environ["POSTGRES_PW"]
-db_name = os.environ["POSTGRES_DB"]
-db_port = 5432 #os.environ["POSTGRES_PORT"]
+TABLE_NAME = os.environ["TABLE_NAME"]
+DB_HOST = os.environ["INSTANCE_HOST"]
+DB_USER = os.environ["POSTGRES_USER"]
+DB_PASS = os.environ["POSTGRES_PW"]
+DB_NAME = os.environ["POSTGRES_DB"]
+DB_PORT = 5432 #os.environ["POSTGRES_PORT"]
+NUMBER_OF_DAYS = 7
 
 # List of top ten tokens on CoinGecko
 top_ten = ['bitcoin', 'ethereum', 'tether', 'binancecoin', 'solana',
            'ripple', 'usd-coin', 'staked-ether', 'cardano', 'avalanche-2']
 
 # Create connection string for SQLAlchemy
-connection_str = f'postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}'
+connection_str = f'postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 # Create SQLAlchemy engine
 engine = create_engine(connection_str)
 
@@ -95,8 +96,8 @@ def extract_rate_data(days: int) -> None:
     rates = pd.concat(exchange_rate, ignore_index=True)
 
     # Store the data in the PostgreSQL database
-    rates.to_sql('exch', con=engine, if_exists="replace", index=False)
+    rates.to_sql({TABLE_NAME}, con=engine, if_exists="replace", index=False)
 
 if __name__ == '__main__':
-    # usage: fetch hourly exchange rate data for the past 7 days
-    extract_rate_data(7)
+    # usage: fetch hourly exchange rate data for the past days
+    extract_rate_data(NUMBER_OF_DAYS)
