@@ -50,9 +50,10 @@ To calculate the PnL, we can use apache spark or apache beam to perform this com
 
 ### Architecture overview for the streaming pipeline
 1. Use parallelize batch requests to extract the data from the api.
-2. Stream data into a distributed service like apache kafka.
-3. Extract data from kafka to bigtable, can also consider google firestore.
-4. Use spark streaming to calculate the pnl with 5 minutes granularity.
+2. Stream data into a distributed service like apache kafka/gcp pubsub.
+3. Extract data from kafka/pubsub to bigtable(if the rates need to be stored), can also consider google firestore.
+4. Use spark streaming or apache beam to calculate the pnl with 5 minutes granularity.
+5. Send the pnl result back to bigtable.
 
 ![streaming](streaming.png)
 
