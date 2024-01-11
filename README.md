@@ -1,5 +1,8 @@
 # Exchange Rate
 
+### Architecture
+![architecture](images/architecture.png)
+
 ### Project Structure
 
     .
