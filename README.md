@@ -3,6 +3,19 @@
 ### Architecture
 ![architecture](images/architecture.png)
 
+## Results
+### The token rates table and wallet pnl table
+![Alt text](images/tables-result.png)
+
+### Token rates
+![Alt text](images/token-rate.png)
+
+### Wallet pnl
+![Alt text](images/pnl-result.png)
+
+###
+
+
 ### Project Structure
 
     .
