@@ -35,6 +35,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - TABLE_NAME=${TABLE_NAME}
+      - X_CG_DEMO_KEY=${X_CG_DEMO_KEY}
+      - NUMBER_OF_DAYS=${NUMBER_OF_DAYS}
     depends_on:
       - db
       - pgadmin

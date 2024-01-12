@@ -10,15 +10,14 @@ import logging
 
 load_dotenv()
 
-API_KEY = os.environ.get('X_API_KEY')
+API_KEY = os.environ["X_API_KEY"]
 WALLET_ADDRESS=os.environ.get('WALLET_ADDRESS')
-print(WALLET_ADDRESS)
 TABLE_NAME = os.environ["TABLE_NAME"]
 DB_HOST = os.environ["INSTANCE_HOST"]
 DB_USER = os.environ["POSTGRES_USER"]
 DB_PASS = os.environ["POSTGRES_PW"]
 DB_NAME = os.environ["POSTGRES_DB"]
-db_port = 5432
+DB_PORT = 5432
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,7 +49,7 @@ def get_wallet_balance(wallet_address: str) -> Dict[str, Any]:
         return {}
 
 def connect_to_db():
-    connection_str = f'postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}'
+    connection_str = f'postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
     # Create SQLAlchemy engine
     engine = create_engine(connection_str)
 
@@ -59,11 +58,9 @@ def connect_to_db():
 
     try:
         with engine.connect() as connection_str:
-            print('Successfully connected to the PostgreSQL database')
             logging.info('Successfully connected to the PostgreSQL database')
         return engine
     except Exception as ex:
-        print(f'Failed to connect: {ex}')
         logging.error(f'Failed to connect: {ex}')
 
 def get_exchange_rates(table_name) -> List[Tuple[datetime, float, datetime, str]]:
@@ -81,8 +78,7 @@ def get_exchange_rates(table_name) -> List[Tuple[datetime, float, datetime, str]
             host=DB_HOST 
         )
         with conn.cursor() as cursor:
-            query = "SELECT date, price, time, name FROM %s;"
-            cursor.execute(query, (table_name,)) 
+            cursor.execute("SELECT date, price, time, name FROM %s;" % table_name) 
             rows = cursor.fetchall()
         conn.close()
         return rows
@@ -149,8 +145,9 @@ def calculate_hourly_pnl(wallet_address: str) -> pd.DataFrame:
         pnl = previous_balance - total_balance if previous_balance != 0 else 0
         hourly_pnl.append((current_time, pnl))
     df = pd.DataFrame(hourly_pnl, columns=["Timestamp", "Hourly PnL"])
-    print('writing resutl to db')
+    logging.info(f"Writing pnl result to {wallet_address}_hourly_pnl table")
     df.to_sql(f"{wallet_address}_hourly_pnl", con=engine, if_exists="replace", index=False)
+    logging.info(f"Successfully written  pnl result to {wallet_address}_hourly_pnl table for {wallet_address}")
     # df.to_csv(f"{wallet_address}_hourly_pnl.csv", index=False)
 
     return df

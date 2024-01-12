@@ -28,6 +28,8 @@ Note: Because I am using the free demo coingecko api, I do get an `error 429`.
 
 for example `ERROR - Failed to fetch data for tether. Status code: 429` because it's being rate limited.
 
+You can fix this by creating a demo account api key here- https://www.coingecko.com/en/developers/dashboard
+
 
 #### Pnl Calculation
 
@@ -52,6 +54,8 @@ PGADMIN_MAIL=
 PGADMIN_PW=
 INSTANCE_HOST=
 X_API_KEY=
+X_CG_DEMO_KEY=
+NUMBER_OF_DAYS=
 WALLET_ADDRESS=
 TABLE_NAME=
 ```

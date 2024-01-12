@@ -1,5 +1,4 @@
 import os
-import time
 import requests
 import pandas as pd
 from datetime import datetime
@@ -16,8 +15,9 @@ DB_HOST = os.environ["INSTANCE_HOST"]
 DB_USER = os.environ["POSTGRES_USER"]
 DB_PASS = os.environ["POSTGRES_PW"]
 DB_NAME = os.environ["POSTGRES_DB"]
-DB_PORT = 5432 #os.environ["POSTGRES_PORT"]
-NUMBER_OF_DAYS = 7
+X_CG_DEMO_KEY= os.environ["X_CG_DEMO_KEY"]
+NUMBER_OF_DAYS = os.environ["NUMBER_OF_DAYS"]
+DB_PORT = 5432
 
 # List of top ten tokens on CoinGecko
 top_ten = ['bitcoin', 'ethereum', 'tether', 'binancecoin', 'solana',
@@ -33,10 +33,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 try:
     with engine.connect() as connection_str:
-        print('Successfully connected to the PostgreSQL database')
         logging.info('Successfully connected to the PostgreSQL database')
 except Exception as ex:
-    print(f'Failed to connect: {ex}')
     logging.error(f'Failed to connect: {ex}')
 
 def fetch_token_data(coin: str, days: int) -> list:
@@ -50,11 +48,16 @@ def fetch_token_data(coin: str, days: int) -> list:
     Returns:
     - list: A list of tuples containing timestamp and price data.
     """
-    url = f'https://api.coingecko.com/api/v3/coins/{coin}/market_chart?vs_currency=usd&days={days}'
-    params = {
-        'vs_currency': 'usd'
+    url = f'https://api.coingecko.com/api/v3/coins/{coin}/market_chart'
+    headers = {
+        'Content-Type': 'application/json',
+        'x-cg-demo-api-key': X_CG_DEMO_KEY
     }
-    response = requests.get(url, params=params)
+    params = {
+        'vs_currency': 'usd',
+        'days': days
+    }
+    response = requests.get(url, headers=headers, params=params)
     if response.status_code == 200:
         data = response.json()
         return data['prices']
@@ -88,7 +91,7 @@ def extract_rate_data(days: int) -> None:
                 lambda x: datetime.fromtimestamp(x // 1000)).dt.floor('h')
             prices['name'] = token
             exchange_rate.append(prices)
-            print('rate extracted to db')
+            logging.info(f"{token} exchange rate data successfuly written to {TABLE_NAME}")
         else:
             logging.warning(f'No data available for {token.capitalize()}')
 
@@ -96,7 +99,7 @@ def extract_rate_data(days: int) -> None:
     rates = pd.concat(exchange_rate, ignore_index=True)
 
     # Store the data in the PostgreSQL database
-    rates.to_sql({TABLE_NAME}, con=engine, if_exists="replace", index=False)
+    rates.to_sql(TABLE_NAME, con=engine, if_exists="replace", index=False)
 
 if __name__ == '__main__':
     # usage: fetch hourly exchange rate data for the past days
